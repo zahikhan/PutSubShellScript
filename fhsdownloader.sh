@@ -38,7 +38,6 @@ make_custom_filename() {
   base="$(echo "$filename" | sed -E 's/\.([^\.]+)$//')"
   extension="$(echo "$filename" | grep -oE '[^\.]+$')"
 
-  # Construct the new filename by appending "_gt" to the end of the extension
   local new_filename="${base}_${expected_file_type}.${extension}"
 
   echo "$new_filename"
@@ -47,7 +46,7 @@ make_custom_filename() {
 download_file() {
   local local_directory_path="C:\Users\Zahidk\Desktop\Taas\File Processing\fhs_subscription\files"
   local gcs_directory_path="gs://pid-gousenaid-eaei-tokn-01-file-processing/output/"
-  local filename=$1
+  local filename=$(extract_base_filename "$1")
   local gt_file_name
   local mt_file_name
   local et_file_name
@@ -58,13 +57,11 @@ download_file() {
   gt_file_name=$(make_custom_filename "$filename" "GT")
 
   # Download the files#
-
   echo "Downloading the file ${gt_file_name}"
   gsutil cp "${gcs_directory_path}${gt_file_name}" "${local_directory_path}"
 
   echo "Downloading the file ${mt_file_name}"
   gsutil cp "${gcs_directory_path}${mt_file_name}" "${local_directory_path}"
-
 
   echo "Downloading the file ${local_directory_path}"
   gsutil cp "${gcs_directory_path}${et_file_name}" "${local_directory_path}"
@@ -77,15 +74,14 @@ listen_pubsub_events() {
 
   # Listen to events from the subscription
   ACKNOWLEDGED=0
-  MESSAGE_COUNT=$(gcloud pubsub subscriptions pull $SUBSCRIPTION_NAME --format='value(publishTime)')
-  echo "Message count : ${MESSAGE_COUNT}"
-  MESSAGE_COUNT=$(echo "$MESSAGE_COUNT" | wc -l)
-
-  echo "Number of messages are : ${MESSAGE_COUNT}"
-
-  while [ $ACKNOWLEDGED -lt "$MESSAGE_COUNT" ]; do
-    MESSAGE=$(gcloud pubsub subscriptions pull $SUBSCRIPTION_NAME --auto-ack --project $PROJECT_ID)
-    echo "Message is : $MESSAGE"
+#  MESSAGE_TRY_COUNT=$(gcloud pubsub subscriptions pull $SUBSCRIPTION_NAME --project $PROJECT_ID --format='value(publishTime)')
+#  MESSAGE_TRY_COUNT=$(echo "$MESSAGE_TRY_COUNT" | wc -l)
+#
+#  echo "Number of messages are : ${MESSAGE_TRY_COUNT}"
+#
+  MESSAGE_TRY_COUNT=1
+  while [ $ACKNOWLEDGED -lt "$MESSAGE_TRY_COUNT" ]; do
+    MESSAGE=$(gcloud beta pubsub subscriptions pull $SUBSCRIPTION_NAME --auto-ack --wait --limit=1 )
     if [ "$MESSAGE" ]; then
       echo "Received message: $MESSAGE"
       echo "$MESSAGE"
@@ -93,8 +89,11 @@ listen_pubsub_events() {
       name_with_directory_path=$(echo "$MESSAGE" | grep '"name"' | cut -d '"' -f4)
       echo "Filename is : $name_with_directory_path"
       download_file "$name_with_directory_path"
+    else
+      echo "No message in the PUBSUB."
     fi
     ((ACKNOWLEDGED++))
+    sleep 1
   done
 }
 main() {
