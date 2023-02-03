@@ -22,7 +22,7 @@ extract_base_filename() {
 
   # Ensure that the input is a non-empty string
   if [ -z "$full_path" ]; then
-    echo "Error: Empty input" >&2
+    echo "Error: Empty filename passed." >&2
     return 1
   fi
 
@@ -46,24 +46,34 @@ make_custom_filename() {
 
 download_file() {
   local local_directory_path="C:\Users\Zahidk\Desktop\Taas\File Processing\fhs_subscription\files"
-  local gcs_directory_path="/path/to/download/directory"
+  local gcs_directory_path="gs://pid-gousenaid-eaei-tokn-01-file-processing/output/"
+  local filename=$1
   local gt_file_name
   local mt_file_name
   local et_file_name
+
   # INITIALIZATION #
-  mt_file_name=$(make_custom_filename "$filename" "mt")
-  et_file_name=$(make_custom_filename "$filename" "et")
-  gt_file_name=$(make_custom_filename "$filename" "gt")
+  mt_file_name=$(make_custom_filename "$filename" "MT")
+  et_file_name=$(make_custom_filename "$filename" "ET")
+  gt_file_name=$(make_custom_filename "$filename" "GT")
+
   # Download the files#
-  gsutil cp "${local_directory_path}" "${gcs_directory_path}${gt_file_name}"
-  gsutil cp "${local_directory_path}" "${gcs_directory_path}${mt_file_name}"
-  gsutil cp "${local_directory_path}" "${gcs_directory_path}${et_file_name}"
+
+  echo "Downloading the file ${gt_file_name}"
+  gsutil cp "${gcs_directory_path}${gt_file_name}" "${local_directory_path}"
+
+  echo "Downloading the file ${mt_file_name}"
+  gsutil cp "${gcs_directory_path}${mt_file_name}" "${local_directory_path}"
+
+
+  echo "Downloading the file ${local_directory_path}"
+  gsutil cp "${gcs_directory_path}${et_file_name}" "${local_directory_path}"
 }
 
 listen_pubsub_events() {
   # Constants
-  PROJECT_ID="pid-gousenaid-eaei-tokn-01"
-  SUBSCRIPTION_NAME="projects/pid-gousenaid-eaei-tokn-01/subscriptions/taas-output-file-processor-fhs-subscription"
+  local PROJECT_ID="pid-gousenaid-eaei-tokn-01"
+  local SUBSCRIPTION_NAME="projects/pid-gousenaid-eaei-tokn-01/subscriptions/taas-output-file-processor-fhs-subscription"
 
   # Listen to events from the subscription
   ACKNOWLEDGED=0
@@ -80,9 +90,9 @@ listen_pubsub_events() {
       echo "Received message: $MESSAGE"
       echo "$MESSAGE"
 
-      namewithdirectorypath=$(echo "$MESSAGE" | grep '"filename"' | cut -d '"' -f4)
-      echo "Filename is : $namewithdirectorypath"
-      download_file
+      name_with_directory_path=$(echo "$MESSAGE" | grep '"name"' | cut -d '"' -f4)
+      echo "Filename is : $name_with_directory_path"
+      download_file "$name_with_directory_path"
     fi
     ((ACKNOWLEDGED++))
   done
