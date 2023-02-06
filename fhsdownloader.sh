@@ -74,26 +74,24 @@ listen_pubsub_events() {
 
   # Listen to events from the subscription
   ACKNOWLEDGED=0
-#  MESSAGE_TRY_COUNT=$(gcloud pubsub subscriptions pull $SUBSCRIPTION_NAME --project $PROJECT_ID --format='value(publishTime)')
-#  MESSAGE_TRY_COUNT=$(echo "$MESSAGE_TRY_COUNT" | wc -l)
-#
-#  echo "Number of messages are : ${MESSAGE_TRY_COUNT}"
-#
-  MESSAGE_TRY_COUNT=1
-  while [ $ACKNOWLEDGED -lt "$MESSAGE_TRY_COUNT" ]; do
-    MESSAGE=$(gcloud beta pubsub subscriptions pull $SUBSCRIPTION_NAME --auto-ack --wait --limit=1 )
+  #  MESSAGE_TRY_COUNT=$(gcloud pubsub subscriptions pull $SUBSCRIPTION_NAME --project $PROJECT_ID --format='value(publishTime)')
+  #  MESSAGE_TRY_COUNT=$(echo "$MESSAGE_TRY_COUNT" | wc -l)
+  #
+  #  echo "Number of messages are : ${MESSAGE_TRY_COUNT}"
+  #
+  iterate=true
+  while [[ "$iterate" = true ]]; do
+    iterate=false
+    MESSAGE=$(gcloud beta pubsub subscriptions pull $SUBSCRIPTION_NAME --auto-ack --wait --limit=1)
     if [ "$MESSAGE" ]; then
+      iterate=true
       echo "Received message: $MESSAGE"
       echo "$MESSAGE"
 
       name_with_directory_path=$(echo "$MESSAGE" | grep '"name"' | cut -d '"' -f4)
       echo "Filename is : $name_with_directory_path"
       download_file "$name_with_directory_path"
-    else
-      echo "No message in the PUBSUB."
     fi
-    ((ACKNOWLEDGED++))
-    sleep 1
   done
 }
 main() {
